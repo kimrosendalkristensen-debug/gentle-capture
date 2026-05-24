@@ -46,44 +46,46 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --ease-drift: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.97 0.012 80);
-  --foreground: oklch(0.20 0.02 55);
-  --card: oklch(0.98 0.008 80);
-  --card-foreground: oklch(0.20 0.02 55);
-  --popover: oklch(0.99 0.006 80);
-  --popover-foreground: oklch(0.20 0.02 55);
-  --primary: oklch(0.63 0.13 40);
-  --primary-foreground: oklch(0.98 0.008 80);
-  --secondary: oklch(0.95 0.01 80);
-  --secondary-foreground: oklch(0.20 0.02 55);
-  --muted: oklch(0.94 0.008 80);
-  --muted-foreground: oklch(0.55 0.025 55);
-  --accent: oklch(0.95 0.01 80);
-  --accent-foreground: oklch(0.20 0.02 55);
-  --destructive: oklch(0.57 0.21 25);
-  --destructive-foreground: oklch(0.98 0.008 80);
-  --border: oklch(0.20 0.02 55 / 6%);
-  --input: oklch(0.20 0.02 55 / 6%);
-  --ring: oklch(0.63 0.13 40 / 30%);
-  --chart-1: oklch(0.63 0.13 40);
-  --chart-2: oklch(0.55 0.10 80);
-  --chart-3: oklch(0.45 0.08 120);
-  --chart-4: oklch(0.70 0.06 200);
-  --chart-5: oklch(0.75 0.09 60);
-  --sidebar: oklch(0.95 0.01 80);
-  --sidebar-foreground: oklch(0.20 0.02 55);
-  --sidebar-primary: oklch(0.63 0.13 40);
-  --sidebar-primary-foreground: oklch(0.98 0.008 80);
-  --sidebar-accent: oklch(0.94 0.008 80);
-  --sidebar-accent-foreground: oklch(0.20 0.02 55);
-  --sidebar-border: oklch(0.20 0.02 55 / 6%);
-  --sidebar-ring: oklch(0.63 0.13 40 / 30%);
+  --radius: 1.25rem;
+  /* Haven Hub palette */
+  --background: oklch(0.974 0.018 95);
+  --foreground: oklch(0.22 0.018 230);
+  --card: oklch(0.99 0.012 95);
+  --card-foreground: oklch(0.22 0.018 230);
+  --popover: oklch(0.99 0.012 95);
+  --popover-foreground: oklch(0.22 0.018 230);
+  --primary: oklch(0.38 0.062 230);
+  --primary-foreground: oklch(0.974 0.018 95);
+  --secondary: oklch(0.88 0.04 75);
+  --secondary-foreground: oklch(0.30 0.04 230);
+  --muted: oklch(0.94 0.018 90);
+  --muted-foreground: oklch(0.55 0.025 220);
+  --accent: oklch(0.68 0.20 38);
+  --accent-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.55 0.18 28);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.30 0.03 230 / 0.10);
+  --input: oklch(0.30 0.03 230 / 0.12);
+  --ring: oklch(0.38 0.062 230 / 0.40);
+  --chart-1: oklch(0.38 0.062 230);
+  --chart-2: oklch(0.68 0.20 38);
+  --chart-3: oklch(0.75 0.025 150);
+  --chart-4: oklch(0.88 0.04 75);
+  --chart-5: oklch(0.55 0.025 220);
+  --sidebar: oklch(0.96 0.014 95);
+  --sidebar-foreground: oklch(0.22 0.018 230);
+  --sidebar-primary: oklch(0.38 0.062 230);
+  --sidebar-primary-foreground: oklch(0.974 0.018 95);
+  --sidebar-accent: oklch(0.88 0.04 75);
+  --sidebar-accent-foreground: oklch(0.22 0.018 230);
+  --sidebar-border: oklch(0.30 0.03 230 / 0.10);
+  --sidebar-ring: oklch(0.38 0.062 230 / 0.40);
 }
 
 .dark {
@@ -133,34 +135,24 @@
 }
 
 @keyframes driftIn {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes settle {
-  from {
-    opacity: 0;
-    transform: scale(0.98) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: scale(0.98) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.animate-drift {
-  animation: driftIn 0.7s cubic-bezier(0.32, 0.72, 0, 1) both;
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0 oklch(0.68 0.20 38 / 0.55); }
+  70% { box-shadow: 0 0 0 28px oklch(0.68 0.20 38 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(0.68 0.20 38 / 0); }
 }
 
-.animate-settle {
-  animation: settle 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
-}
+.animate-drift { animation: driftIn 0.7s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.animate-settle { animation: settle 0.5s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.animate-pulse-ring { animation: pulseRing 1.6s cubic-bezier(0.32, 0.72, 0, 1) infinite; }
 
 .font-tight {
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;

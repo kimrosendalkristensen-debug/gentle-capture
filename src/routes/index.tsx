@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import leafWater from "@/assets/leaf-water.jpg";
 
 export const Route = createFileRoute("/")({
   component: CaptureApp,
@@ -9,511 +8,659 @@ export const Route = createFileRoute("/")({
 
 // ─── Types ───────────────────────────────────────────────
 
-interface Entry {
+interface Item {
   id: string;
   text: string;
   timestamp: number;
-  archivedAt?: number;
-  refined?: boolean;
+  done?: boolean;
+  source: "voice" | "text";
 }
 
-type Tab = "capture" | "stream" | "archive";
+type Tab = "capture" | "list";
 
-// ─── Demo Data ───────────────────────────────────────────
+// ─── Storage ─────────────────────────────────────────────
 
-const DEMO_ENTRIES: Entry[] = [
-  {
-    id: "demo-1",
-    text: "The way the light hits the studio floor at 4pm makes everything look like a Renaissance painting. Remind myself to buy more linen.",
-    timestamp: Date.now() - 2 * 60 * 60 * 1000,
-  },
-  {
-    id: "demo-2",
-    text: "tom monday",
-    timestamp: Date.now() - 24 * 60 * 60 * 1000,
-  },
-  {
-    id: "demo-3",
-    text: "Ideas for the modular shelving unit: use raw aluminum for the brackets and reclaimed cedar for the planks. Keep the fixings visible.",
-    timestamp: Date.now() - 48 * 60 * 60 * 1000,
-  },
-];
+const LS_ITEMS = "openloops_items";
 
-const DEMO_ARCHIVE: Entry[] = [
-  {
-    id: "demo-4",
-    text: "Check if the subscription for the design magazine renewed.",
-    timestamp: new Date("2024-10-12").getTime(),
-    archivedAt: new Date("2024-10-12").getTime(),
-  },
-  {
-    id: "demo-5",
-    text: "The sound of the train at night is a low C sharp.",
-    timestamp: new Date("2024-10-10").getTime(),
-    archivedAt: new Date("2024-10-10").getTime(),
-  },
-];
-
-// ─── Utilities ───────────────────────────────────────────
-
-function formatTimestamp(ts: number): string {
-  const d = new Date(ts);
-  const now = new Date();
-  const diffMs = now.getTime() - ts;
-  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-
-  if (diffDays === 0) {
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + " \u00b7 Today";
-  }
-  if (diffDays === 1) {
-    return "Yesterday";
-  }
-  if (diffDays < 7) {
-    return d.toLocaleDateString("en-US", { weekday: "long" });
-  }
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function formatArchiveDate(ts: number): string {
-  const d = new Date(ts);
-  return "Archived " + d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function needsRefinement(text: string): boolean {
-  return text.length < 20 || text.split(" ").length < 4;
-}
-
-// ─── Local Storage ───────────────────────────────────────
-
-const LS_ENTRIES = "capture_entries";
-const LS_ARCHIVE = "capture_archive";
-
-function loadEntries(): Entry[] {
+function loadItems(): Item[] {
   try {
-    const raw = localStorage.getItem(LS_ENTRIES);
+    const raw = localStorage.getItem(LS_ITEMS);
     if (raw) return JSON.parse(raw);
   } catch {
     /* ignore */
   }
-  return DEMO_ENTRIES;
+  return [];
 }
 
-function loadArchive(): Entry[] {
-  try {
-    const raw = localStorage.getItem(LS_ARCHIVE);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    /* ignore */
-  }
-  return DEMO_ARCHIVE;
+function saveItems(items: Item[]) {
+  localStorage.setItem(LS_ITEMS, JSON.stringify(items));
 }
 
-function saveEntries(entries: Entry[]) {
-  localStorage.setItem(LS_ENTRIES, JSON.stringify(entries));
+// ─── Speech Recognition (Web Speech API — native, no external calls) ─
+
+type SR = typeof window extends { SpeechRecognition: infer T } ? T : any;
+
+function getSpeechRecognition(): any {
+  if (typeof window === "undefined") return null;
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 }
 
-function saveArchive(archive: Entry[]) {
-  localStorage.setItem(LS_ARCHIVE, JSON.stringify(archive));
-}
-
-// ─── Main Component ──────────────────────────────────────
+// ─── Main ────────────────────────────────────────────────
 
 function CaptureApp() {
   const [activeTab, setActiveTab] = useState<Tab>("capture");
-  const [entries, setEntries] = useState<Entry[]>(loadEntries);
-  const [archive, setArchive] = useState<Entry[]>(loadArchive);
-  const [input, setInput] = useState("");
-  const [justCaptured, setJustCaptured] = useState(false);
+  const [items, setItems] = useState<Item[]>(loadItems);
 
-  useEffect(() => saveEntries(entries), [entries]);
-  useEffect(() => saveArchive(archive), [archive]);
+  useEffect(() => saveItems(items), [items]);
 
-  const handleCapture = useCallback(() => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    const newEntry: Entry = {
-      id: crypto.randomUUID?.() ?? String(Date.now()),
-      text: trimmed,
-      timestamp: Date.now(),
-    };
-    setEntries((prev) => [newEntry, ...prev]);
-    setInput("");
-    setJustCaptured(true);
-    setTimeout(() => setJustCaptured(false), 1500);
-  }, [input]);
-
-  const handleArchive = useCallback((id: string) => {
-    setEntries((prev) => {
-      const entry = prev.find((e) => e.id === id);
-      if (!entry) return prev;
-      setArchive((a) => [{ ...entry, archivedAt: Date.now() }, ...a]);
-      return prev.filter((e) => e.id !== id);
-    });
+  const addItem = useCallback((text: string, source: "voice" | "text") => {
+    const t = text.trim();
+    if (!t) return;
+    setItems((prev) => [
+      { id: crypto.randomUUID?.() ?? String(Date.now()), text: t, timestamp: Date.now(), source },
+      ...prev,
+    ]);
   }, []);
 
-  const handleRefine = useCallback(
-    (id: string, newText: string) => {
-      setEntries((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, text: newText, refined: true } : e))
-      );
-    },
-    []
-  );
+  const toggleDone = useCallback((id: string) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done: !i.done } : i)));
+  }, []);
+
+  const removeItem = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  const openCount = items.filter((i) => !i.done).length;
 
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary overflow-hidden">
-      <main className="relative min-h-[100dvh] pb-24">
+    <div className="min-h-[100dvh] bg-background text-foreground font-sans selection:bg-primary/15 selection:text-primary overflow-hidden">
+      <main className="relative min-h-[100dvh] pb-28">
         <AnimatePresence mode="wait">
-          {activeTab === "capture" && (
-            <CaptureView
-              key="capture"
-              input={input}
-              setInput={setInput}
-              onCapture={handleCapture}
-              justCaptured={justCaptured}
-            />
+          {activeTab === "capture" ? (
+            <CaptureView key="capture" onSave={addItem} />
+          ) : (
+            <ListView key="list" items={items} onToggle={toggleDone} onRemove={removeItem} />
           )}
-          {activeTab === "stream" && (
-            <StreamView
-              key="stream"
-              entries={entries}
-              onArchive={handleArchive}
-              onRefine={handleRefine}
-            />
-          )}
-          {activeTab === "archive" && <ArchiveView key="archive" archive={archive} />}
         </AnimatePresence>
       </main>
-
-      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onChange={setActiveTab} openCount={openCount} />
     </div>
   );
 }
 
 // ─── Capture View ────────────────────────────────────────
 
-function CaptureView({
-  input,
-  setInput,
-  onCapture,
-  justCaptured,
-}: {
-  input: string;
-  setInput: (v: string) => void;
-  onCapture: () => void;
-  justCaptured: boolean;
-}) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+type CaptureMode = "voice" | "text";
 
+function CaptureView({ onSave }: { onSave: (text: string, source: "voice" | "text") => void }) {
+  const [mode, setMode] = useState<CaptureMode>("voice");
+  const [supported, setSupported] = useState<boolean>(true);
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [interim, setInterim] = useState("");
+  const [textInput, setTextInput] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  const recogRef = useRef<any>(null);
+  const transcriptRef = useRef("");
+  const countdownTimerRef = useRef<number | null>(null);
+  const stoppedByUserRef = useRef(false);
+
+  // Detect support
   useEffect(() => {
-    textareaRef.current?.focus();
+    const SR = getSpeechRecognition();
+    if (!SR) {
+      setSupported(false);
+      setMode("text");
+    }
   }, []);
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      onCapture();
+  // Keep transcript ref in sync
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
+
+  const clearCountdown = () => {
+    if (countdownTimerRef.current) {
+      window.clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
     }
+    setCountdown(null);
   };
 
+  const startListening = useCallback(() => {
+    const SR = getSpeechRecognition();
+    if (!SR) return;
+    clearCountdown();
+    stoppedByUserRef.current = false;
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = "en-US";
+
+    r.onresult = (e: any) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        if (res.isFinal) finalText += res[0].transcript;
+        else interimText += res[0].transcript;
+      }
+      if (finalText) {
+        setTranscript((prev) => (prev ? prev + " " : "") + finalText.trim());
+      }
+      setInterim(interimText);
+    };
+
+    r.onerror = (e: any) => {
+      console.warn("speech error", e?.error);
+      setListening(false);
+    };
+
+    r.onend = () => {
+      setListening(false);
+      setInterim("");
+      // If user didn't manually stop, try to restart (some browsers auto-end)
+      if (!stoppedByUserRef.current && recogRef.current === r) {
+        try {
+          r.start();
+          setListening(true);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+
+    try {
+      r.start();
+      recogRef.current = r;
+      setListening(true);
+    } catch {
+      /* already started */
+    }
+  }, []);
+
+  const stopListening = useCallback(() => {
+    stoppedByUserRef.current = true;
+    if (recogRef.current) {
+      try { recogRef.current.stop(); } catch { /* ignore */ }
+      recogRef.current = null;
+    }
+    setListening(false);
+  }, []);
+
+  // Auto-start voice on mount if supported
+  useEffect(() => {
+    if (supported && mode === "voice") {
+      // small delay so the UI settles
+      const t = window.setTimeout(() => startListening(), 250);
+      return () => window.clearTimeout(t);
+    }
+    return undefined;
+  }, [supported, mode, startListening]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stoppedByUserRef.current = true;
+      if (recogRef.current) {
+        try { recogRef.current.stop(); } catch { /* ignore */ }
+      }
+      clearCountdown();
+    };
+  }, []);
+
+  const triggerSavedFlash = () => {
+    setJustSaved(true);
+    window.setTimeout(() => setJustSaved(false), 1400);
+  };
+
+  const startCountdownToRestart = () => {
+    clearCountdown();
+    setCountdown(3);
+    countdownTimerRef.current = window.setInterval(() => {
+      setCountdown((c) => {
+        if (c === null) return null;
+        if (c <= 1) {
+          clearCountdown();
+          startListening();
+          return null;
+        }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSaveVoice = () => {
+    const text = transcriptRef.current.trim();
+    if (!text) return;
+    onSave(text, "voice");
+    setTranscript("");
+    setInterim("");
+    triggerSavedFlash();
+    // stop current session, then restart in 3s unless user cancels
+    stoppedByUserRef.current = true;
+    if (recogRef.current) {
+      try { recogRef.current.stop(); } catch { /* ignore */ }
+      recogRef.current = null;
+    }
+    setListening(false);
+    startCountdownToRestart();
+  };
+
+  const handleStopVoice = () => {
+    stopListening();
+    clearCountdown();
+    // Switch to text mode as requested
+    setMode("text");
+  };
+
+  const handleSaveText = () => {
+    if (!textInput.trim()) return;
+    onSave(textInput, "text");
+    setTextInput("");
+    triggerSavedFlash();
+  };
+
+  // ─── Render ───
   return (
     <motion.section
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-      className="flex flex-col items-center justify-center min-h-[calc(100dvh-6rem)] px-6"
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+      className="flex flex-col min-h-[calc(100dvh-7rem)] px-5 pt-10"
     >
-      <div className="w-full max-w-2xl">
-        <div className="mb-4 animate-drift">
-          <span className="font-mono-label text-muted-foreground">New Entry</span>
-        </div>
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          rows={1}
-          className="w-full bg-transparent text-3xl md:text-4xl font-tight placeholder:text-foreground/10 border-none focus:ring-0 resize-none outline-none leading-tight animate-drift"
-          style={{ animationDelay: "100ms" }}
-          placeholder="What's on your mind?"
-        />
-        <div
-          className="mt-8 flex items-center gap-4 text-muted-foreground animate-drift"
-          style={{ animationDelay: "200ms" }}
-        >
-          {justCaptured ? (
-            <motion.span
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-xs text-primary font-medium"
-            >
-              Thought captured. Let it drift...
-            </motion.span>
-          ) : (
-            <span className="text-xs">Press enter to let it drift...</span>
-          )}
-        </div>
-      </div>
-    </motion.section>
-  );
-}
-
-// ─── Stream View ─────────────────────────────────────────
-
-function StreamView({
-  entries,
-  onArchive,
-  onRefine,
-}: {
-  entries: Entry[];
-  onArchive: (id: string) => void;
-  onRefine: (id: string, text: string) => void;
-}) {
-  const [refiningId, setRefiningId] = useState<string | null>(null);
-  const [refineInput, setRefineInput] = useState("");
-
-  const startRefine = (entry: Entry) => {
-    setRefiningId(entry.id);
-    setRefineInput(entry.text);
-  };
-
-  const submitRefine = () => {
-    if (refiningId && refineInput.trim()) {
-      onRefine(refiningId, refineInput.trim());
-    }
-    setRefiningId(null);
-    setRefineInput("");
-  };
-
-  const cancelRefine = () => {
-    setRefiningId(null);
-    setRefineInput("");
-  };
-
-  const renderEntry = (entry: Entry, index: number) => {
-    const isRefining = refiningId === entry.id;
-    const showRefinement = !entry.refined && needsRefinement(entry.text) && !isRefining;
-
-    return (
-      <div key={entry.id}>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.6,
-            ease: [0.32, 0.72, 0, 1],
-            delay: index * 0.08,
-          }}
-          className="group relative"
-        >
-          {isRefining ? (
-            <div className="space-y-4">
-              <textarea
-                value={refineInput}
-                onChange={(e) => setRefineInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    submitRefine();
-                  }
-                }}
-                autoFocus
-                className="w-full bg-transparent text-xl leading-relaxed border-none focus:ring-0 resize-none outline-none"
-                rows={2}
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={submitRefine}
-                  className="px-4 py-2 bg-card rounded-lg text-sm border border-border shadow-sm hover:shadow-md transition-all"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={cancelRefine}
-                  className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="text-xl leading-relaxed text-pretty">{entry.text}</div>
-              <div className="mt-4 flex items-center gap-6">
-                <span className="font-mono-label text-muted-foreground">
-                  {formatTimestamp(entry.timestamp)}
-                </span>
-                <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {showRefinement && (
-                    <button
-                      onClick={() => startRefine(entry)}
-                      className="font-mono-label text-primary hover:text-primary/80 transition-colors"
-                    >
-                      Clarify
-                    </button>
-                  )}
-                  <button
-                    onClick={() => onArchive(entry.id)}
-                    className="font-mono-label text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Archive
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </motion.div>
-
-        {showRefinement && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1], delay: 0.15 }}
-            className="bg-primary/5 rounded-2xl p-8 ring-1 ring-primary/10"
-          >
-            <span className="font-mono-label text-primary mb-4 block">Refinement</span>
-            <p className="text-lg mb-6">
-              You wrote <span className="italic font-medium">&ldquo;{entry.text}&rdquo;</span> — would you like
-              to clarify this?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => startRefine(entry)}
-                className="px-4 py-2 bg-card rounded-lg text-sm border border-border shadow-sm hover:shadow-md transition-all"
-              >
-                Clarify
-              </button>
-              <button
-                onClick={() => onRefine(entry.id, entry.text)}
-                className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors"
-              >
-                Skip for now
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <motion.section
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-      className="max-w-xl mx-auto py-16 md:py-24 px-6"
-    >
-      <header className="mb-16 animate-drift">
-        <h2 className="font-mono-label text-muted-foreground">Recent Thoughts</h2>
+      {/* Header */}
+      <header className="mb-6 animate-drift">
+        <p className="font-mono-label text-muted-foreground">Open Loops</p>
+        <h1 className="mt-2 font-serif text-2xl leading-tight text-pretty">
+          Say it before you forget.
+        </h1>
       </header>
 
-      {entries.length === 0 ? (
-        <div className="text-center py-24">
-          <p className="text-muted-foreground text-lg italic">Your stream is quiet right now.</p>
-          <p className="text-muted-foreground text-sm mt-2">Capture a thought and it will appear here.</p>
+      {/* Mode toggle */}
+      <div className="flex items-center gap-2 mb-6 animate-drift" style={{ animationDelay: "80ms" }}>
+        <button
+          disabled={!supported}
+          onClick={() => { setMode("voice"); }}
+          className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${
+            mode === "voice"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-card text-muted-foreground ring-1 ring-border"
+          } ${!supported ? "opacity-40 cursor-not-allowed" : ""}`}
+        >
+          {supported ? "Voice" : "Voice (unsupported)"}
+        </button>
+        <button
+          onClick={() => { stopListening(); clearCountdown(); setMode("text"); }}
+          className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${
+            mode === "text"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-card text-muted-foreground ring-1 ring-border"
+          }`}
+        >
+          Text
+        </button>
+      </div>
+
+      {/* Capture surface */}
+      <div className="flex-1 flex flex-col">
+        {mode === "voice" ? (
+          <VoiceCapture
+            listening={listening}
+            transcript={transcript}
+            interim={interim}
+            countdown={countdown}
+            justSaved={justSaved}
+            onStart={startListening}
+            onStop={handleStopVoice}
+            onSave={handleSaveVoice}
+            onCancelCountdown={clearCountdown}
+          />
+        ) : (
+          <TextCapture
+            value={textInput}
+            setValue={setTextInput}
+            onSave={handleSaveText}
+            justSaved={justSaved}
+            onSwitchVoice={supported ? () => setMode("voice") : undefined}
+          />
+        )}
+      </div>
+    </motion.section>
+  );
+}
+
+// ─── Voice Capture ───────────────────────────────────────
+
+function VoiceCapture({
+  listening,
+  transcript,
+  interim,
+  countdown,
+  justSaved,
+  onStart,
+  onStop,
+  onSave,
+  onCancelCountdown,
+}: {
+  listening: boolean;
+  transcript: string;
+  interim: string;
+  countdown: number | null;
+  justSaved: boolean;
+  onStart: () => void;
+  onStop: () => void;
+  onSave: () => void;
+  onCancelCountdown: () => void;
+}) {
+  const hasText = (transcript + " " + interim).trim().length > 0;
+
+  return (
+    <div className="flex-1 flex flex-col">
+      {/* Transcript area */}
+      <div className="flex-1 min-h-[12rem] rounded-3xl bg-card ring-1 ring-border p-5 mb-6">
+        {hasText ? (
+          <p className="text-xl leading-relaxed text-pretty">
+            <span>{transcript}</span>
+            {interim && (
+              <span className="text-muted-foreground italic"> {interim}</span>
+            )}
+          </p>
+        ) : (
+          <p className="text-muted-foreground italic">
+            {listening ? "Listening… start speaking your open loop." : "Tap the mic to start."}
+          </p>
+        )}
+      </div>
+
+      {/* Mic + actions */}
+      <div className="flex flex-col items-center gap-4 pb-2">
+        <button
+          onClick={listening ? onStop : onStart}
+          aria-label={listening ? "Stop listening" : "Start listening"}
+          className={`relative h-20 w-20 rounded-full flex items-center justify-center transition-all ${
+            listening
+              ? "bg-accent text-accent-foreground animate-pulse-ring"
+              : "bg-primary text-primary-foreground"
+          }`}
+        >
+          <MicIcon className="h-8 w-8" />
+        </button>
+
+        <div className="h-5 font-mono-label text-muted-foreground">
+          {countdown !== null ? (
+            <button onClick={onCancelCountdown} className="text-primary">
+              Next entry in {countdown}s — tap to cancel
+            </button>
+          ) : justSaved ? (
+            <span className="text-primary">Saved</span>
+          ) : listening ? (
+            <span>Tap to stop · Speak naturally</span>
+          ) : (
+            <span>Tap to start</span>
+          )}
         </div>
+
+        <div className="flex items-center gap-3 w-full max-w-sm">
+          <button
+            onClick={onSave}
+            disabled={!transcript.trim()}
+            className="flex-1 h-12 rounded-full bg-foreground text-background text-sm font-medium disabled:opacity-30 transition-opacity"
+          >
+            Save loop
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Text Capture ────────────────────────────────────────
+
+function TextCapture({
+  value,
+  setValue,
+  onSave,
+  justSaved,
+  onSwitchVoice,
+}: {
+  value: string;
+  setValue: (v: string) => void;
+  onSave: () => void;
+  justSaved: boolean;
+  onSwitchVoice?: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  return (
+    <div className="flex-1 flex flex-col">
+      <div className="flex-1 min-h-[12rem] rounded-3xl bg-card ring-1 ring-border p-5 mb-6">
+        <textarea
+          ref={ref}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              onSave();
+            }
+          }}
+          rows={6}
+          placeholder="What can't be forgotten?"
+          className="w-full h-full bg-transparent text-xl leading-relaxed placeholder:text-muted-foreground/60 border-none focus:ring-0 resize-none outline-none"
+        />
+      </div>
+
+      <div className="flex flex-col items-center gap-3 pb-2">
+        <div className="h-5 font-mono-label text-muted-foreground">
+          {justSaved ? <span className="text-primary">Saved</span> : <span>⌘ + Enter to save</span>}
+        </div>
+        <div className="flex items-center gap-3 w-full max-w-sm">
+          {onSwitchVoice && (
+            <button
+              onClick={onSwitchVoice}
+              className="h-12 w-12 rounded-full bg-card ring-1 ring-border flex items-center justify-center text-foreground"
+              aria-label="Switch to voice"
+            >
+              <MicIcon className="h-5 w-5" />
+            </button>
+          )}
+          <button
+            onClick={onSave}
+            disabled={!value.trim()}
+            className="flex-1 h-12 rounded-full bg-foreground text-background text-sm font-medium disabled:opacity-30 transition-opacity"
+          >
+            Save loop
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── List View ───────────────────────────────────────────
+
+function ListView({
+  items,
+  onToggle,
+  onRemove,
+}: {
+  items: Item[];
+  onToggle: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const open = items.filter((i) => !i.done);
+  const done = items.filter((i) => i.done);
+
+  return (
+    <motion.section
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-xl mx-auto pt-10 pb-6 px-5"
+    >
+      <header className="mb-6 animate-drift">
+        <p className="font-mono-label text-muted-foreground">Open Loops</p>
+        <h2 className="mt-2 font-serif text-2xl">
+          {open.length === 0 ? "All caught up." : `${open.length} thing${open.length === 1 ? "" : "s"} not to forget`}
+        </h2>
+      </header>
+
+      {open.length === 0 && done.length === 0 ? (
+        <p className="text-muted-foreground italic mt-8">
+          Nothing yet. Speak something on the Capture tab.
+        </p>
       ) : (
-        <div className="space-y-24">
-          {entries.map((entry, i) => renderEntry(entry, i))}
+        <ul className="space-y-3">
+          {open.map((item, i) => (
+            <ItemRow key={item.id} item={item} index={i} onToggle={onToggle} onRemove={onRemove} />
+          ))}
+        </ul>
+      )}
+
+      {done.length > 0 && (
+        <div className="mt-12">
+          <p className="font-mono-label text-muted-foreground mb-3">Done</p>
+          <ul className="space-y-2 opacity-50">
+            {done.map((item, i) => (
+              <ItemRow key={item.id} item={item} index={i} onToggle={onToggle} onRemove={onRemove} />
+            ))}
+          </ul>
         </div>
       )}
     </motion.section>
   );
 }
 
-// ─── Archive View ────────────────────────────────────────
-
-function ArchiveView({ archive }: { archive: Entry[] }) {
+function ItemRow({
+  item,
+  index,
+  onToggle,
+  onRemove,
+}: {
+  item: Item;
+  index: number;
+  onToggle: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
   return (
-    <motion.section
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-      className="max-w-xl mx-auto py-16 md:py-24 px-6"
+    <motion.li
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: Math.min(index, 8) * 0.04, ease: [0.32, 0.72, 0, 1] }}
+      className="group rounded-2xl bg-card ring-1 ring-border p-4 flex items-start gap-3"
     >
-      <h2 className="font-mono-label text-muted-foreground mb-16 text-center animate-drift">
-        Released Thoughts
-      </h2>
-
-      {archive.length === 0 ? (
-        <div className="text-center py-24 opacity-40">
-          <p className="text-lg italic">Nothing archived yet.</p>
-          <p className="text-sm mt-2">Thoughts you archive will rest here gently.</p>
+      <button
+        onClick={() => onToggle(item.id)}
+        aria-label={item.done ? "Mark as open" : "Mark as done"}
+        className={`mt-1 h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
+          item.done
+            ? "bg-primary border-primary text-primary-foreground"
+            : "border-muted-foreground/40 hover:border-primary"
+        }`}
+      >
+        {item.done && <CheckIcon className="h-3 w-3" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className={`text-base leading-relaxed text-pretty ${item.done ? "line-through text-muted-foreground" : ""}`}>
+          {item.text}
+        </p>
+        <div className="mt-1.5 flex items-center gap-2 font-mono-label text-muted-foreground">
+          <span>{item.source === "voice" ? "Voice" : "Text"}</span>
+          <span>·</span>
+          <span>{formatRelative(item.timestamp)}</span>
         </div>
-      ) : (
-        <>
-          <div className="space-y-16 opacity-40">
-            {archive.map((entry, i) => (
-              <motion.div
-                key={entry.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.5,
-                  ease: [0.32, 0.72, 0, 1],
-                  delay: i * 0.06,
-                }}
-                className="group"
-              >
-                <div className="text-lg leading-relaxed line-through decoration-foreground/20">
-                  {entry.text}
-                </div>
-                <div className="mt-2 font-mono-label text-muted-foreground">
-                  {formatArchiveDate(entry.archivedAt ?? entry.timestamp)}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="mt-24 flex flex-col items-center animate-drift" style={{ animationDelay: "400ms" }}>
-            <div className="w-full aspect-[2/1] rounded-2xl overflow-hidden ring-1 ring-border">
-              <img
-                src={leafWater}
-                alt="A single leaf floating on still water"
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </div>
-            <p className="mt-8 text-muted-foreground text-sm text-center max-w-xs text-balance italic">
-              &ldquo;Capturing a thought is not about holding on; it&apos;s about letting go once it has
-              been heard.&rdquo;
-            </p>
-          </div>
-        </>
-      )}
-    </motion.section>
+      </div>
+      <button
+        onClick={() => onRemove(item.id)}
+        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all text-xs"
+        aria-label="Remove"
+      >
+        ✕
+      </button>
+    </motion.li>
   );
+}
+
+function formatRelative(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
 // ─── Bottom Navigation ───────────────────────────────────
 
-function BottomNav({ activeTab, onChange }: { activeTab: Tab; onChange: (t: Tab) => void }) {
+function BottomNav({
+  activeTab,
+  onChange,
+  openCount,
+}: {
+  activeTab: Tab;
+  onChange: (t: Tab) => void;
+  openCount: number;
+}) {
   const tabs: { key: Tab; label: string }[] = [
     { key: "capture", label: "Capture" },
-    { key: "stream", label: "Stream" },
-    { key: "archive", label: "Archive" },
+    { key: "list", label: "Loops" },
   ];
-
   return (
-    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-      <div className="bg-card/80 backdrop-blur-xl ring-1 ring-border rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-sm">
+    <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50">
+      <div className="bg-card/90 backdrop-blur-xl ring-1 ring-border rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-sm">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
               activeTab === tab.key
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}
+            {tab.key === "list" && openCount > 0 && (
+              <span
+                className={`min-w-5 h-5 px-1.5 rounded-full text-[10px] font-mono flex items-center justify-center ${
+                  activeTab === "list"
+                    ? "bg-background text-foreground"
+                    : "bg-accent text-accent-foreground"
+                }`}
+              >
+                {openCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
     </nav>
+  );
+}
+
+// ─── Icons ───────────────────────────────────────────────
+
+function MicIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="9" y="3" width="6" height="12" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <line x1="12" y1="18" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   );
 }
