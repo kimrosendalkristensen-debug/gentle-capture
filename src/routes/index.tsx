@@ -435,13 +435,13 @@ function ArchiveView({ archive }: { archive: Entry[] }) {
       className="max-w-xl mx-auto py-16 md:py-24 px-6"
     >
       <h2 className="font-mono-label text-muted-foreground mb-16 text-center animate-drift">
-        Released Thoughts
+        Sluppet fri
       </h2>
 
       {archive.length === 0 ? (
         <div className="text-center py-24 opacity-40">
-          <p className="text-lg italic">Nothing archived yet.</p>
-          <p className="text-sm mt-2">Thoughts you archive will rest here gently.</p>
+          <p className="text-lg italic">Intet arkiveret endnu.</p>
+          <p className="text-sm mt-2">Tanker du arkiverer, hviler stille her.</p>
         </div>
       ) : (
         <>
