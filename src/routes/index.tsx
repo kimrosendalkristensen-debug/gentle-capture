@@ -472,14 +472,14 @@ function ArchiveView({ archive }: { archive: Entry[] }) {
             <div className="w-full aspect-[2/1] rounded-2xl overflow-hidden ring-1 ring-border">
               <img
                 src={leafWater}
-                alt="A single leaf floating on still water"
+                alt="Et enkelt blad, der flyder på stille vand"
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
             </div>
             <p className="mt-8 text-muted-foreground text-sm text-center max-w-xs text-balance italic">
-              &ldquo;Capturing a thought is not about holding on; it&apos;s about letting go once it has
-              been heard.&rdquo;
+              &ldquo;At fange en tanke handler ikke om at holde fast; det handler om at slippe den,
+              når den er blevet hørt.&rdquo;
             </p>
           </div>
         </>
