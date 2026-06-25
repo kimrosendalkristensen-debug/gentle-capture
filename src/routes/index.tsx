@@ -226,7 +226,7 @@ function CaptureView({
     >
       <div className="w-full max-w-2xl">
         <div className="mb-4 animate-drift">
-          <span className="font-mono-label text-muted-foreground">New Entry</span>
+          <span className="font-mono-label text-muted-foreground">Ny notering</span>
         </div>
         <textarea
           ref={textareaRef}
@@ -236,7 +236,7 @@ function CaptureView({
           rows={1}
           className="w-full bg-transparent text-3xl md:text-4xl font-tight placeholder:text-foreground/10 border-none focus:ring-0 resize-none outline-none leading-tight animate-drift"
           style={{ animationDelay: "100ms" }}
-          placeholder="What's on your mind?"
+          placeholder="Hvad tænker du på?"
         />
         <div
           className="mt-8 flex items-center gap-4 text-muted-foreground animate-drift"
@@ -248,10 +248,10 @@ function CaptureView({
               animate={{ opacity: 1, x: 0 }}
               className="text-xs text-primary font-medium"
             >
-              Thought captured. Let it drift...
+              Tanken er fanget. Lad den drive videre ...
             </motion.span>
           ) : (
-            <span className="text-xs">Press enter to let it drift...</span>
+            <span className="text-xs">Tryk enter for at lade den drive ...</span>
           )}
         </div>
       </div>
