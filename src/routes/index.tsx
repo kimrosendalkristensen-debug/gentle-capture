@@ -406,13 +406,13 @@ function StreamView({
       className="max-w-xl mx-auto py-16 md:py-24 px-6"
     >
       <header className="mb-16 animate-drift">
-        <h2 className="font-mono-label text-muted-foreground">Recent Thoughts</h2>
+        <h2 className="font-mono-label text-muted-foreground">Seneste tanker</h2>
       </header>
 
       {entries.length === 0 ? (
         <div className="text-center py-24">
-          <p className="text-muted-foreground text-lg italic">Your stream is quiet right now.</p>
-          <p className="text-muted-foreground text-sm mt-2">Capture a thought and it will appear here.</p>
+          <p className="text-muted-foreground text-lg italic">Din strøm er stille lige nu.</p>
+          <p className="text-muted-foreground text-sm mt-2">Fang en tanke, så dukker den op her.</p>
         </div>
       ) : (
         <div className="space-y-24">
