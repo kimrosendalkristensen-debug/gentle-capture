@@ -24,17 +24,17 @@ type Tab = "capture" | "stream" | "archive";
 const DEMO_ENTRIES: Entry[] = [
   {
     id: "demo-1",
-    text: "The way the light hits the studio floor at 4pm makes everything look like a Renaissance painting. Remind myself to buy more linen.",
+    text: "Måden lyset rammer studiegulvet på klokken 16 får alting til at ligne et renæssancemaleri. Husk at købe mere hør.",
     timestamp: Date.now() - 2 * 60 * 60 * 1000,
   },
   {
     id: "demo-2",
-    text: "tom monday",
+    text: "tom mandag",
     timestamp: Date.now() - 24 * 60 * 60 * 1000,
   },
   {
     id: "demo-3",
-    text: "Ideas for the modular shelving unit: use raw aluminum for the brackets and reclaimed cedar for the planks. Keep the fixings visible.",
+    text: "Idéer til den modulære reol: brug rå aluminium til beslagene og genbrugt cedertræ til hylderne. Lad samlingerne være synlige.",
     timestamp: Date.now() - 48 * 60 * 60 * 1000,
   },
 ];
@@ -42,13 +42,13 @@ const DEMO_ENTRIES: Entry[] = [
 const DEMO_ARCHIVE: Entry[] = [
   {
     id: "demo-4",
-    text: "Check if the subscription for the design magazine renewed.",
+    text: "Tjek om abonnementet på designmagasinet er blevet fornyet.",
     timestamp: new Date("2024-10-12").getTime(),
     archivedAt: new Date("2024-10-12").getTime(),
   },
   {
     id: "demo-5",
-    text: "The sound of the train at night is a low C sharp.",
+    text: "Lyden af toget om natten er et lavt Cis.",
     timestamp: new Date("2024-10-10").getTime(),
     archivedAt: new Date("2024-10-10").getTime(),
   },
@@ -63,20 +63,20 @@ function formatTimestamp(ts: number): string {
   const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
 
   if (diffDays === 0) {
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + " \u00b7 Today";
+    return d.toLocaleTimeString("da-DK", { hour: "numeric", minute: "2-digit" }) + " \u00b7 I dag";
   }
   if (diffDays === 1) {
-    return "Yesterday";
+    return "I går";
   }
   if (diffDays < 7) {
-    return d.toLocaleDateString("en-US", { weekday: "long" });
+    return d.toLocaleDateString("da-DK", { weekday: "long" });
   }
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("da-DK", { month: "short", day: "numeric" });
 }
 
 function formatArchiveDate(ts: number): string {
   const d = new Date(ts);
-  return "Archived " + d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return "Arkiveret " + d.toLocaleDateString("da-DK", { month: "short", day: "numeric" });
 }
 
 function needsRefinement(text: string): boolean {
@@ -226,7 +226,7 @@ function CaptureView({
     >
       <div className="w-full max-w-2xl">
         <div className="mb-4 animate-drift">
-          <span className="font-mono-label text-muted-foreground">New Entry</span>
+          <span className="font-mono-label text-muted-foreground">Ny notering</span>
         </div>
         <textarea
           ref={textareaRef}
@@ -236,7 +236,7 @@ function CaptureView({
           rows={1}
           className="w-full bg-transparent text-3xl md:text-4xl font-tight placeholder:text-foreground/10 border-none focus:ring-0 resize-none outline-none leading-tight animate-drift"
           style={{ animationDelay: "100ms" }}
-          placeholder="What's on your mind?"
+          placeholder="Hvad tænker du på?"
         />
         <div
           className="mt-8 flex items-center gap-4 text-muted-foreground animate-drift"
@@ -248,10 +248,10 @@ function CaptureView({
               animate={{ opacity: 1, x: 0 }}
               className="text-xs text-primary font-medium"
             >
-              Thought captured. Let it drift...
+              Tanken er fanget. Lad den drive videre ...
             </motion.span>
           ) : (
-            <span className="text-xs">Press enter to let it drift...</span>
+            <span className="text-xs">Tryk enter for at lade den drive ...</span>
           )}
         </div>
       </div>
@@ -327,13 +327,13 @@ function StreamView({
                   onClick={submitRefine}
                   className="px-4 py-2 bg-card rounded-lg text-sm border border-border shadow-sm hover:shadow-md transition-all"
                 >
-                  Save
+                  Gem
                 </button>
                 <button
                   onClick={cancelRefine}
                   className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors"
                 >
-                  Cancel
+                  Annullér
                 </button>
               </div>
             </div>
@@ -350,14 +350,14 @@ function StreamView({
                       onClick={() => startRefine(entry)}
                       className="font-mono-label text-primary hover:text-primary/80 transition-colors"
                     >
-                      Clarify
+                      Uddyb
                     </button>
                   )}
                   <button
                     onClick={() => onArchive(entry.id)}
                     className="font-mono-label text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Archive
+                    Arkivér
                   </button>
                 </div>
               </div>
@@ -372,23 +372,23 @@ function StreamView({
             transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1], delay: 0.15 }}
             className="bg-primary/5 rounded-2xl p-8 ring-1 ring-primary/10"
           >
-            <span className="font-mono-label text-primary mb-4 block">Refinement</span>
+            <span className="font-mono-label text-primary mb-4 block">Uddybning</span>
             <p className="text-lg mb-6">
-              You wrote <span className="italic font-medium">&ldquo;{entry.text}&rdquo;</span> — would you like
-              to clarify this?
+              Du skrev <span className="italic font-medium">&ldquo;{entry.text}&rdquo;</span> — vil du
+              uddybe det?
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => startRefine(entry)}
                 className="px-4 py-2 bg-card rounded-lg text-sm border border-border shadow-sm hover:shadow-md transition-all"
               >
-                Clarify
+                Uddyb
               </button>
               <button
                 onClick={() => onRefine(entry.id, entry.text)}
                 className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors"
               >
-                Skip for now
+                Spring over
               </button>
             </div>
           </motion.div>
@@ -406,13 +406,13 @@ function StreamView({
       className="max-w-xl mx-auto py-16 md:py-24 px-6"
     >
       <header className="mb-16 animate-drift">
-        <h2 className="font-mono-label text-muted-foreground">Recent Thoughts</h2>
+        <h2 className="font-mono-label text-muted-foreground">Seneste tanker</h2>
       </header>
 
       {entries.length === 0 ? (
         <div className="text-center py-24">
-          <p className="text-muted-foreground text-lg italic">Your stream is quiet right now.</p>
-          <p className="text-muted-foreground text-sm mt-2">Capture a thought and it will appear here.</p>
+          <p className="text-muted-foreground text-lg italic">Din strøm er stille lige nu.</p>
+          <p className="text-muted-foreground text-sm mt-2">Fang en tanke, så dukker den op her.</p>
         </div>
       ) : (
         <div className="space-y-24">
@@ -435,13 +435,13 @@ function ArchiveView({ archive }: { archive: Entry[] }) {
       className="max-w-xl mx-auto py-16 md:py-24 px-6"
     >
       <h2 className="font-mono-label text-muted-foreground mb-16 text-center animate-drift">
-        Released Thoughts
+        Sluppet fri
       </h2>
 
       {archive.length === 0 ? (
         <div className="text-center py-24 opacity-40">
-          <p className="text-lg italic">Nothing archived yet.</p>
-          <p className="text-sm mt-2">Thoughts you archive will rest here gently.</p>
+          <p className="text-lg italic">Intet arkiveret endnu.</p>
+          <p className="text-sm mt-2">Tanker du arkiverer, hviler stille her.</p>
         </div>
       ) : (
         <>
@@ -472,14 +472,14 @@ function ArchiveView({ archive }: { archive: Entry[] }) {
             <div className="w-full aspect-[2/1] rounded-2xl overflow-hidden ring-1 ring-border">
               <img
                 src={leafWater}
-                alt="A single leaf floating on still water"
+                alt="Et enkelt blad, der flyder på stille vand"
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
             </div>
             <p className="mt-8 text-muted-foreground text-sm text-center max-w-xs text-balance italic">
-              &ldquo;Capturing a thought is not about holding on; it&apos;s about letting go once it has
-              been heard.&rdquo;
+              &ldquo;At fange en tanke handler ikke om at holde fast; det handler om at slippe den,
+              når den er blevet hørt.&rdquo;
             </p>
           </div>
         </>
@@ -492,9 +492,9 @@ function ArchiveView({ archive }: { archive: Entry[] }) {
 
 function BottomNav({ activeTab, onChange }: { activeTab: Tab; onChange: (t: Tab) => void }) {
   const tabs: { key: Tab; label: string }[] = [
-    { key: "capture", label: "Capture" },
-    { key: "stream", label: "Stream" },
-    { key: "archive", label: "Archive" },
+    { key: "capture", label: "Fang" },
+    { key: "stream", label: "Strøm" },
+    { key: "archive", label: "Arkiv" },
   ];
 
   return (
