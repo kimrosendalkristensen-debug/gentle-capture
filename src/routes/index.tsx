@@ -327,13 +327,13 @@ function StreamView({
                   onClick={submitRefine}
                   className="px-4 py-2 bg-card rounded-lg text-sm border border-border shadow-sm hover:shadow-md transition-all"
                 >
-                  Save
+                  Gem
                 </button>
                 <button
                   onClick={cancelRefine}
                   className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors"
                 >
-                  Cancel
+                  Annullér
                 </button>
               </div>
             </div>
@@ -350,14 +350,14 @@ function StreamView({
                       onClick={() => startRefine(entry)}
                       className="font-mono-label text-primary hover:text-primary/80 transition-colors"
                     >
-                      Clarify
+                      Uddyb
                     </button>
                   )}
                   <button
                     onClick={() => onArchive(entry.id)}
                     className="font-mono-label text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Archive
+                    Arkivér
                   </button>
                 </div>
               </div>
@@ -372,23 +372,23 @@ function StreamView({
             transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1], delay: 0.15 }}
             className="bg-primary/5 rounded-2xl p-8 ring-1 ring-primary/10"
           >
-            <span className="font-mono-label text-primary mb-4 block">Refinement</span>
+            <span className="font-mono-label text-primary mb-4 block">Uddybning</span>
             <p className="text-lg mb-6">
-              You wrote <span className="italic font-medium">&ldquo;{entry.text}&rdquo;</span> — would you like
-              to clarify this?
+              Du skrev <span className="italic font-medium">&ldquo;{entry.text}&rdquo;</span> — vil du
+              uddybe det?
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => startRefine(entry)}
                 className="px-4 py-2 bg-card rounded-lg text-sm border border-border shadow-sm hover:shadow-md transition-all"
               >
-                Clarify
+                Uddyb
               </button>
               <button
                 onClick={() => onRefine(entry.id, entry.text)}
                 className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors"
               >
-                Skip for now
+                Spring over
               </button>
             </div>
           </motion.div>
