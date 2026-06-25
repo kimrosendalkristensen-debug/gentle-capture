@@ -63,20 +63,20 @@ function formatTimestamp(ts: number): string {
   const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
 
   if (diffDays === 0) {
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + " \u00b7 Today";
+    return d.toLocaleTimeString("da-DK", { hour: "numeric", minute: "2-digit" }) + " \u00b7 I dag";
   }
   if (diffDays === 1) {
-    return "Yesterday";
+    return "I går";
   }
   if (diffDays < 7) {
-    return d.toLocaleDateString("en-US", { weekday: "long" });
+    return d.toLocaleDateString("da-DK", { weekday: "long" });
   }
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("da-DK", { month: "short", day: "numeric" });
 }
 
 function formatArchiveDate(ts: number): string {
   const d = new Date(ts);
-  return "Archived " + d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return "Arkiveret " + d.toLocaleDateString("da-DK", { month: "short", day: "numeric" });
 }
 
 function needsRefinement(text: string): boolean {
