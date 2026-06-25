@@ -492,9 +492,9 @@ function ArchiveView({ archive }: { archive: Entry[] }) {
 
 function BottomNav({ activeTab, onChange }: { activeTab: Tab; onChange: (t: Tab) => void }) {
   const tabs: { key: Tab; label: string }[] = [
-    { key: "capture", label: "Capture" },
-    { key: "stream", label: "Stream" },
-    { key: "archive", label: "Archive" },
+    { key: "capture", label: "Fang" },
+    { key: "stream", label: "Strøm" },
+    { key: "archive", label: "Arkiv" },
   ];
 
   return (
