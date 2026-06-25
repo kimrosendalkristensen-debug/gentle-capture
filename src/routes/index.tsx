@@ -24,17 +24,17 @@ type Tab = "capture" | "stream" | "archive";
 const DEMO_ENTRIES: Entry[] = [
   {
     id: "demo-1",
-    text: "The way the light hits the studio floor at 4pm makes everything look like a Renaissance painting. Remind myself to buy more linen.",
+    text: "Måden lyset rammer studiegulvet på klokken 16 får alting til at ligne et renæssancemaleri. Husk at købe mere hør.",
     timestamp: Date.now() - 2 * 60 * 60 * 1000,
   },
   {
     id: "demo-2",
-    text: "tom monday",
+    text: "tom mandag",
     timestamp: Date.now() - 24 * 60 * 60 * 1000,
   },
   {
     id: "demo-3",
-    text: "Ideas for the modular shelving unit: use raw aluminum for the brackets and reclaimed cedar for the planks. Keep the fixings visible.",
+    text: "Idéer til den modulære reol: brug rå aluminium til beslagene og genbrugt cedertræ til hylderne. Lad samlingerne være synlige.",
     timestamp: Date.now() - 48 * 60 * 60 * 1000,
   },
 ];
@@ -42,13 +42,13 @@ const DEMO_ENTRIES: Entry[] = [
 const DEMO_ARCHIVE: Entry[] = [
   {
     id: "demo-4",
-    text: "Check if the subscription for the design magazine renewed.",
+    text: "Tjek om abonnementet på designmagasinet er blevet fornyet.",
     timestamp: new Date("2024-10-12").getTime(),
     archivedAt: new Date("2024-10-12").getTime(),
   },
   {
     id: "demo-5",
-    text: "The sound of the train at night is a low C sharp.",
+    text: "Lyden af toget om natten er et lavt Cis.",
     timestamp: new Date("2024-10-10").getTime(),
     archivedAt: new Date("2024-10-10").getTime(),
   },
